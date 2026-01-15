@@ -1,0 +1,32 @@
+# Githooklib Configuration Example
+# This is an example configuration file for the githooklib project itself
+
+hook_search_paths:
+  - githooks
+
+log_level: INFO
+
+performance:
+  caching_enabled: true
+  parallel_execution: false
+  max_workers: 4
+
+notifications:
+  enabled: false
+  on_failure: true
+  on_success: false
+  
+  desktop:
+    enabled: false
+
+hooks:
+  pre-commit:
+    enabled: true
+    file_patterns:
+      - "*.py"
+  
+  pre-push:
+    enabled: true
+    file_patterns:
+      - "*.py"
+
