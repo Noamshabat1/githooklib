@@ -69,6 +69,21 @@ class TestCommandResultFactory(BaseTestCase):
         self.assertIn("Error executing command", result.stderr)
         self.assertIn("Generic error message", result.stderr)
         self.assertEqual(result.command, ["test"])
+    
+    def test_create_timeout_result(self):
+        result = CommandResultFactory.create_timeout_result(["long-command"], 30)
+        self.assertFalse(result.success)
+        self.assertEqual(result.exit_code, 124)
+        self.assertIn("timed out", result.stderr.lower())
+        self.assertIn("30", result.stderr)
+        self.assertEqual(result.command, ["long-command"])
+        self.assertEqual(result.stdout, "")
+    
+    def test_create_timeout_result_with_none_timeout(self):
+        result = CommandResultFactory.create_timeout_result(["command"], None)
+        self.assertFalse(result.success)
+        self.assertEqual(result.exit_code, 124)
+        self.assertIn("timed out", result.stderr.lower())
 
 
 if __name__ == "__main__":

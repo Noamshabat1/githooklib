@@ -22,7 +22,9 @@ class TestInstallE2E(OperationsBaseTestCase):
                 ["install", "non-existent-hook"], cwd=root, success=False, exit_code=1
             )
             self.assertEqual(1, result.exit_code)
-            self.assertIn("Error", result.stderr)
+            # Error now printed through console (goes to stdout on Windows)
+            output = result.stderr + result.stdout
+            self.assertIn("Error", output)
 
     def test_not_in_git_repository(self):
         with self.new_temp_project(git=False) as root:

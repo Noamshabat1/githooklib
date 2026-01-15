@@ -1,7 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
-from ..exceptions import GitHookLibException
+from ..exceptions import GithooklibException
 from ..logger import get_logger
 from ..ui_messages import UI_MESSAGE_COULD_NOT_FIND_GIT_REPOSITORY
 from .git_gateway import GitGateway
@@ -20,7 +20,7 @@ class ProjectRootGateway:
         if not git:
             logger.error(UI_MESSAGE_COULD_NOT_FIND_GIT_REPOSITORY)
             logger.debug("Git repository not found, cannot determine project root")
-            raise GitHookLibException(UI_MESSAGE_COULD_NOT_FIND_GIT_REPOSITORY)
+            raise GithooklibException(UI_MESSAGE_COULD_NOT_FIND_GIT_REPOSITORY)
         result = git.parent
         logger.debug("Project root: %s", result)
         logger.trace("Project root resolved from git root: %s -> %s", git, result)

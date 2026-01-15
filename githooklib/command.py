@@ -22,15 +22,17 @@ class CommandExecutor:
         check: bool = False,
         text: bool = True,
         shell: bool = False,
+        timeout: Optional[int] = None,
     ) -> CommandResult:
         logger.trace(
-            "Command: %s, cwd: %s, capture_output: %s, check: %s, text: %s, shell: %s",
+            "Command: %s, cwd: %s, capture_output: %s, check: %s, text: %s, shell: %s, timeout: %s",
             command,
             cwd,
             capture_output,
             check,
             text,
             shell,
+            timeout,
         )
         cmd_list = self._normalize_command(command, shell)
         normalized_cwd = self._normalize_cwd(cwd)
@@ -39,7 +41,7 @@ class CommandExecutor:
             "Normalized command: %s, normalized cwd: %s", cmd_list, normalized_cwd
         )
         result = self._execute_command(
-            cmd_list, normalized_cwd, capture_output, check, text, shell
+            cmd_list, normalized_cwd, capture_output, check, text, shell, timeout
         )
         logger.trace(
             "Command result: exit_code=%d, stdout_length=%d, stderr_length=%d",
@@ -57,11 +59,12 @@ class CommandExecutor:
         check: bool = False,
         text: bool = True,
         shell: bool = False,
+        timeout: Optional[int] = None,
     ) -> CommandResult:
         logger.trace("Python executable: %s, command: %s", sys.executable, cmd)
         full_command = [sys.executable] + cmd
         logger.trace("Full Python command: %s", full_command)
-        return self.run(full_command, cwd, capture_output, check, text, shell)
+        return self.run(full_command, cwd, capture_output, check, text, shell, timeout)
 
     def python_module(
         self,
@@ -72,11 +75,12 @@ class CommandExecutor:
         check: bool = False,
         text: bool = True,
         shell: bool = False,
+        timeout: Optional[int] = None,
     ):
         logger.trace("Module: %s, command: %s", module, cmd)
         full_command = ["-m", module] + cmd
         logger.trace("Full module command: %s", full_command)
-        return self.python(full_command, cwd, capture_output, check, text, shell)
+        return self.python(full_command, cwd, capture_output, check, text, shell, timeout)
 
     def _normalize_command(
         self, command: Union[str, List[str]], shell: bool
@@ -106,20 +110,27 @@ class CommandExecutor:
         check: bool,
         text: bool,
         shell: bool,
+        timeout: Optional[int] = None,
     ) -> CommandResult:
         logger.trace("Executing command: %s", cmd_list)
         logger.trace(
-            "Execution parameters: cwd=%s, capture_output=%s, check=%s, text=%s, shell=%s",
+            "Execution parameters: cwd=%s, capture_output=%s, check=%s, text=%s, shell=%s, timeout=%s",
             cwd,
             capture_output,
             check,
             text,
             shell,
+            timeout,
         )
         try:
             return self._run_subprocess(
-                cmd_list, cwd, capture_output, check, text, shell
+                cmd_list, cwd, capture_output, check, text, shell, timeout
             )
+        except subprocess.TimeoutExpired as e:
+            logger.error("Command timed out after %s seconds: %s", timeout, cmd_list)
+            logger.debug("Command '%s' exceeded timeout of %s seconds", " ".join(cmd_list), timeout)
+            logger.trace("Exception details: %s", e, exc_info=True)
+            return CommandResultFactory.create_timeout_result(cmd_list, timeout)
         except subprocess.CalledProcessError as e:
             logger.warning("Command failed with CalledProcessError: %s", e)
             logger.debug("Command exit code: %d", e.returncode)
@@ -143,15 +154,17 @@ class CommandExecutor:
         check: bool,
         text: bool,
         shell: bool,
+        timeout: Optional[int] = None,
     ) -> CommandResult:
         logger.trace("Calling subprocess.run with: %s", cmd_list)
         logger.trace(
-            "Subprocess parameters: cwd=%s, capture_output=%s, check=%s, text=%s, shell=%s",
+            "Subprocess parameters: cwd=%s, capture_output=%s, check=%s, text=%s, shell=%s, timeout=%s",
             cwd,
             capture_output,
             check,
             text,
             shell,
+            timeout,
         )
         result = subprocess.run(
             cmd_list,
@@ -160,6 +173,7 @@ class CommandExecutor:
             check=check,
             text=text,
             shell=shell,
+            timeout=timeout,
             encoding="utf-8" if text else None,
             errors="replace" if text else None,
         )

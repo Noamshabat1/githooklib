@@ -37,8 +37,11 @@ class TestSeedE2E(OperationsBaseTestCase):
                 ["seed", "non_existent_example"], cwd=root, success=False, exit_code=1
             )
             self.assertEqual(1, result.exit_code)
-            self.assertIn(UI_MESSAGE_ERROR_PREFIX.strip(), result.stderr)
-            self.assertIn(UI_MESSAGE_EXAMPLE_NOT_FOUND_SUFFIX.strip(), result.stderr)
+            # Error now printed through console (goes to stdout on Windows)
+            output = result.stderr + result.stdout
+            self.assertIn(UI_MESSAGE_ERROR_PREFIX.strip(), output)
+            output = result.stderr + result.stdout
+            self.assertIn(UI_MESSAGE_EXAMPLE_NOT_FOUND_SUFFIX.strip(), output)
 
     def test_example_already_exists(self):
         with self.new_temp_project() as root:
@@ -47,9 +50,12 @@ class TestSeedE2E(OperationsBaseTestCase):
                 ["seed", "pre_commit_black"], cwd=root, success=False, exit_code=1
             )
             self.assertEqual(1, result.exit_code)
-            self.assertIn(UI_MESSAGE_ERROR_PREFIX.strip(), result.stderr)
+            # Error now printed through console (goes to stdout on Windows)
+            output = result.stderr + result.stdout
+            self.assertIn(UI_MESSAGE_ERROR_PREFIX.strip(), output)
+            output2 = result.stderr + result.stdout
             self.assertIn(
-                UI_MESSAGE_EXAMPLE_ALREADY_EXISTS_SUFFIX.strip(), result.stderr
+                UI_MESSAGE_EXAMPLE_ALREADY_EXISTS_SUFFIX.strip(), output2
             )
 
     def test_not_in_git_repository(self):

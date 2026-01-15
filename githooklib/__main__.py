@@ -1,5 +1,5 @@
 # pylint: disable=invalid-name
-from .utils import FireGetResultMock
+from .utils.google_fire_mock_get_result_function import FireGetResultMock
 from .cli import CLI
 import fire.value_types
 import fire

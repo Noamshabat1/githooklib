@@ -1,5 +1,5 @@
 import subprocess
-from typing import List
+from typing import List, Optional
 
 from ..command import CommandResult
 from ..constants import EXIT_FAILURE
@@ -56,6 +56,19 @@ class CommandResultFactory:
             exit_code=EXIT_FAILURE,
             stdout="",
             stderr=error_msg,
+            command=cmd_list,
+        )
+
+    @staticmethod
+    def create_timeout_result(
+        cmd_list: List[str], timeout: Optional[int]
+    ) -> CommandResult:
+        timeout_msg = f"Command timed out after {timeout} seconds"
+        return CommandResult(
+            success=False,
+            exit_code=124,
+            stdout="",
+            stderr=timeout_msg,
             command=cmd_list,
         )
 

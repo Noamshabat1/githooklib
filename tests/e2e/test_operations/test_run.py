@@ -35,7 +35,9 @@ class TestRunE2E(OperationsBaseTestCase):
                 ["run", "non-existent-hook"], cwd=root, success=False, exit_code=1
             )
             self.assertEqual(1, result.exit_code)
-            self.assertIn("Error", result.stderr)
+            # Error now printed through console (goes to stdout on Windows)
+            output = result.stderr + result.stdout
+            self.assertIn("Error", output)
 
     def test_hook_with_exceptions(self):
         exception_hook = self.create_exception_hook("pre-commit", "Test exception")

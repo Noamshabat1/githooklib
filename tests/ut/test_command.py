@@ -74,7 +74,7 @@ class TestCommandExecutor(BaseTestCase):
             side_effect=subprocess.CalledProcessError(1, "cmd"),
         ):
             result = self.executor._execute_command(
-                ["test"], None, True, False, True, False
+                ["test"], None, True, False, True, False, None
             )
             self.assertIsInstance(result, CommandResult)
             self.assertFalse(result.success)
@@ -84,7 +84,7 @@ class TestCommandExecutor(BaseTestCase):
             self.executor, "_run_subprocess", side_effect=FileNotFoundError()
         ):
             result = self.executor._execute_command(
-                ["nonexistent"], None, True, False, True, False
+                ["nonexistent"], None, True, False, True, False, None
             )
             self.assertIsInstance(result, CommandResult)
             self.assertFalse(result.success)
@@ -95,7 +95,7 @@ class TestCommandExecutor(BaseTestCase):
             self.executor, "_run_subprocess", side_effect=Exception("Generic error")
         ):
             result = self.executor._execute_command(
-                ["test"], None, True, False, True, False
+                ["test"], None, True, False, True, False, None
             )
             self.assertIsInstance(result, CommandResult)
             self.assertFalse(result.success)
@@ -107,11 +107,55 @@ class TestCommandExecutor(BaseTestCase):
         mock_result.stderr = ""
         with patch("subprocess.run", return_value=mock_result):
             result = self.executor._run_subprocess(
-                ["test"], None, True, False, True, False
+                ["test"], None, True, False, True, False, None
             )
             self.assertIsInstance(result, CommandResult)
             self.assertTrue(result.success)
             self.assertEqual(result.exit_code, 0)
+    
+    def test_run_with_timeout_parameter(self):
+        import sys
+        result = self.executor.run(
+            [sys.executable, "-c", "print('test')"],
+            timeout=10
+        )
+        self.assertIsInstance(result, CommandResult)
+        self.assertTrue(result.success)
+    
+    def test_timeout_expired_returns_error_result(self):
+        import sys
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 1)):
+            result = self.executor.run(
+                [sys.executable, "-c", "import time; time.sleep(10)"],
+                timeout=1
+            )
+            self.assertIsInstance(result, CommandResult)
+            self.assertFalse(result.success)
+            self.assertEqual(result.exit_code, 124)
+            self.assertIn("timed out", result.stderr.lower())
+    
+    def test_timeout_parameter_passed_to_subprocess(self):
+        with patch("subprocess.run") as mock_run:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
+            mock_run.return_value = mock_result
+            
+            self.executor.run(["test"], timeout=30)
+            
+            args, kwargs = mock_run.call_args
+            self.assertEqual(kwargs.get("timeout"), 30)
+    
+    def test_python_method_with_timeout(self):
+        import sys
+        result = self.executor.python(["-c", "print('test')"], timeout=10)
+        self.assertIsInstance(result, CommandResult)
+        self.assertTrue(result.success)
+    
+    def test_python_module_method_with_timeout(self):
+        result = self.executor.python_module("sys", ["--version"], timeout=10)
+        self.assertIsInstance(result, CommandResult)
 
 
 if __name__ == "__main__":

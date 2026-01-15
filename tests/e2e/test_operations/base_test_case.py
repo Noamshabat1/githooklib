@@ -73,8 +73,20 @@ class OperationsBaseTestCase(BaseTestCase):
         hooks = []
         for line in lines:
             stripped = line.strip()
+            # Old format: - hook-name
             if stripped.startswith("- "):
                 hooks.append(stripped[2:])
+            # New format with bullet: • hook-name or ? hook-name (encoding issue)
+            elif stripped and not "Available hooks" in stripped and not "hooks:" in stripped.lower():
+                # Remove leading bullet/symbol and whitespace
+                parts = stripped.split(None, 1)
+                if len(parts) >= 1:
+                    # If first part is a single symbol, take the second part
+                    if len(parts) == 2 and len(parts[0]) == 1:
+                        hooks.append(parts[1])
+                    # Otherwise check if it looks like a hook name
+                    elif parts[0] and "-" in parts[0] or "_" in parts[0]:
+                        hooks.append(parts[0])
         return hooks
 
     def show(self, cwd: Optional[Path] = None) -> List[str]:
@@ -83,8 +95,15 @@ class OperationsBaseTestCase(BaseTestCase):
         hooks = []
         for line in lines:
             stripped = line.strip()
+            # Old format: - hook-name
             if stripped.startswith("- "):
                 hooks.append(stripped[2:])
+            # New table format: | hook-name | source |
+            elif "|" in stripped and not stripped.startswith("+") and not stripped.startswith("Hook Name"):
+                parts = [p.strip() for p in stripped.split("|") if p.strip()]
+                if parts:
+                    # Format: "hook-name | source"
+                    hooks.append(" | ".join(parts))
         return hooks
 
     @contextmanager

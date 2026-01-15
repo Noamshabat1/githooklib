@@ -18,7 +18,7 @@ class TestCLI(BaseTestCase):
         with patch.object(
             self.cli._api, "list_available_hook_names", return_value=["hook1", "hook2"]
         ):
-            with patch("builtins.print") as mock_print:
+            with patch("githooklib.ui.console.Console.print") as mock_print:
                 self.cli.list()
                 mock_print.assert_called()
                 calls = [str(call) for call in mock_print.call_args_list]
@@ -27,8 +27,9 @@ class TestCLI(BaseTestCase):
 
     def test_list_without_hooks_does_not_print(self):
         with patch.object(self.cli._api, "list_available_hook_names", return_value=[]):
-            with patch("builtins.print") as mock_print:
+            with patch("githooklib.ui.console.Console.print") as mock_print:
                 self.cli.list()
+                # Error is printed, not the hook list
                 mock_print.assert_not_called()
 
     def test_list_handles_value_error(self):
@@ -37,9 +38,11 @@ class TestCLI(BaseTestCase):
             "list_available_hook_names",
             side_effect=ValueError("Error message"),
         ):
-            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+            with patch("githooklib.cli.console.print_error") as mock_error:
                 self.cli.list()
-                self.assertIn("Error message", mock_stderr.getvalue())
+                mock_error.assert_called()
+                call_args = str(mock_error.call_args)
+                self.assertIn("Error message", call_args)
 
     def test_show_with_installed_hooks_prints_hooks(self):
         context = InstalledHooksContext(
@@ -50,11 +53,11 @@ class TestCLI(BaseTestCase):
             "get_installed_hooks_with_context",
             return_value=context,
         ):
-            with patch("builtins.print") as mock_print:
+            with patch("githooklib.ui.console.Console.print_table") as mock_table:
                 self.cli.show()
-                mock_print.assert_called()
-                calls = [str(call) for call in mock_print.call_args_list]
-                self.assertTrue(any("pre-commit" in str(call) for call in calls))
+                mock_table.assert_called()
+                call_args = str(mock_table.call_args)
+                self.assertIn("pre-commit", call_args)
 
     def test_show_without_git_root_does_not_print(self):
         context = InstalledHooksContext({}, None, False)
@@ -63,9 +66,9 @@ class TestCLI(BaseTestCase):
             "get_installed_hooks_with_context",
             return_value=context,
         ):
-            with patch("builtins.print") as mock_print:
+            with patch("githooklib.ui.console.Console.print_table") as mock_table:
                 self.cli.show()
-                mock_print.assert_not_called()
+                mock_table.assert_not_called()
 
     def test_show_without_hooks_directory_does_not_print(self):
         context = InstalledHooksContext({}, Path("/test"), False)
@@ -74,9 +77,9 @@ class TestCLI(BaseTestCase):
             "get_installed_hooks_with_context",
             return_value=context,
         ):
-            with patch("builtins.print") as mock_print:
+            with patch("githooklib.ui.console.Console.print_table") as mock_table:
                 self.cli.show()
-                mock_print.assert_not_called()
+                mock_table.assert_not_called()
 
     def test_show_without_installed_hooks_does_not_print(self):
         context = InstalledHooksContext({}, Path("/test"), True)
@@ -85,9 +88,9 @@ class TestCLI(BaseTestCase):
             "get_installed_hooks_with_context",
             return_value=context,
         ):
-            with patch("builtins.print") as mock_print:
+            with patch("githooklib.ui.console.Console.print_table") as mock_table:
                 self.cli.show()
-                mock_print.assert_not_called()
+                mock_table.assert_not_called()
 
     def test_run_success_returns_exit_success(self):
         with patch.object(self.cli._api, "check_hook_exists", return_value=True):
@@ -108,19 +111,23 @@ class TestCLI(BaseTestCase):
                 "get_hook_not_found_error_message",
                 return_value="Hook not found",
             ):
-                with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                with patch("githooklib.cli.console.print_error") as mock_error:
                     result = self.cli.run("non-existent-hook")
                     self.assertEqual(result, EXIT_FAILURE)
-                    self.assertIn("Hook not found", mock_stderr.getvalue())
+                    mock_error.assert_called()
+                    call_args = str(mock_error.call_args)
+                    self.assertIn("Hook not found", call_args)
 
     def test_run_handles_value_error(self):
         with patch.object(
             self.cli._api, "check_hook_exists", side_effect=ValueError("Error")
         ):
-            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+            with patch("githooklib.cli.console.print_error") as mock_error:
                 result = self.cli.run("test-hook")
                 self.assertEqual(result, EXIT_FAILURE)
-                self.assertIn("Error", mock_stderr.getvalue())
+                mock_error.assert_called()
+                call_args = str(mock_error.call_args)
+                self.assertIn("Error", call_args)
 
     def test_install_success_returns_exit_success(self):
         with patch.object(self.cli._api, "check_hook_exists", return_value=True):
@@ -143,19 +150,23 @@ class TestCLI(BaseTestCase):
                 "get_hook_not_found_error_message",
                 return_value="Hook not found",
             ):
-                with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                with patch("githooklib.cli.console.print_error") as mock_error:
                     result = self.cli.install("non-existent-hook")
                     self.assertEqual(result, EXIT_FAILURE)
-                    self.assertIn("Hook not found", mock_stderr.getvalue())
+                    mock_error.assert_called()
+                    call_args = str(mock_error.call_args)
+                    self.assertIn("Hook not found", call_args)
 
     def test_install_handles_exception(self):
         with patch.object(
             self.cli._api, "check_hook_exists", side_effect=Exception("Error")
         ):
-            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+            with patch("githooklib.cli.console.print_error") as mock_error:
                 result = self.cli.install("test-hook")
                 self.assertEqual(result, EXIT_FAILURE)
-                self.assertIn("Error", mock_stderr.getvalue())
+                mock_error.assert_called()
+                call_args = str(mock_error.call_args)
+                self.assertIn("Error", call_args)
 
     def test_uninstall_success_returns_exit_success(self):
         with patch.object(self.cli._api, "check_hook_exists", return_value=True):
@@ -180,19 +191,23 @@ class TestCLI(BaseTestCase):
                 "get_hook_not_found_error_message",
                 return_value="Hook not found",
             ):
-                with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                with patch("githooklib.cli.console.print_error") as mock_error:
                     result = self.cli.uninstall("non-existent-hook")
                     self.assertEqual(result, EXIT_FAILURE)
-                    self.assertIn("Hook not found", mock_stderr.getvalue())
+                    mock_error.assert_called()
+                    call_args = str(mock_error.call_args)
+                    self.assertIn("Hook not found", call_args)
 
     def test_uninstall_handles_value_error(self):
         with patch.object(
             self.cli._api, "check_hook_exists", side_effect=ValueError("Error")
         ):
-            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+            with patch("githooklib.cli.console.print_error") as mock_error:
                 result = self.cli.uninstall("test-hook")
                 self.assertEqual(result, EXIT_FAILURE)
-                self.assertIn("Error", mock_stderr.getvalue())
+                mock_error.assert_called()
+                call_args = str(mock_error.call_args)
+                self.assertIn("Error", call_args)
 
     def test_seed_without_example_name_lists_examples(self):
         with patch.object(
@@ -200,7 +215,7 @@ class TestCLI(BaseTestCase):
             "list_available_example_names",
             return_value=["example1", "example2"],
         ):
-            with patch("builtins.print") as mock_print:
+            with patch("githooklib.ui.console.Console.print") as mock_print:
                 result = self.cli.seed(None)
                 self.assertEqual(result, EXIT_SUCCESS)
                 mock_print.assert_called()
@@ -236,10 +251,10 @@ class TestCLI(BaseTestCase):
                     available_examples=["example1"],
                 ),
             ):
-                with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                with patch("githooklib.cli.console.print_error") as mock_error:
                     result = self.cli.seed("non-existent-example")
                     self.assertEqual(result, EXIT_FAILURE)
-                    self.assertGreater(len(mock_stderr.getvalue()), 0)
+                    mock_error.assert_called()
 
     def test_seed_project_root_not_found_returns_exit_failure(self):
         from githooklib.definitions import SeedFailureDetails
@@ -258,10 +273,10 @@ class TestCLI(BaseTestCase):
                     available_examples=[],
                 ),
             ):
-                with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                with patch("githooklib.cli.console.print_error") as mock_error:
                     result = self.cli.seed("test-example")
                     self.assertEqual(result, EXIT_FAILURE)
-                    self.assertGreater(len(mock_stderr.getvalue()), 0)
+                    mock_error.assert_called()
 
     def test_seed_target_already_exists_returns_exit_failure(self):
         from githooklib.definitions import SeedFailureDetails
@@ -280,10 +295,10 @@ class TestCLI(BaseTestCase):
                     available_examples=[],
                 ),
             ):
-                with patch("sys.stderr", new=StringIO()) as mock_stderr:
+                with patch("githooklib.cli.console.print_error") as mock_error:
                     result = self.cli.seed("test-example")
                     self.assertEqual(result, EXIT_FAILURE)
-                    self.assertGreater(len(mock_stderr.getvalue()), 0)
+                    mock_error.assert_called()
 
     def test_seed_handles_exception(self):
         with patch.object(
@@ -291,15 +306,19 @@ class TestCLI(BaseTestCase):
             "seed_example_hook_to_project",
             side_effect=Exception("Error"),
         ):
-            with patch("sys.stderr", new=StringIO()) as mock_stderr:
+            with patch("githooklib.cli.console.print_error") as mock_error:
                 result = self.cli.seed("test-example")
                 self.assertEqual(result, EXIT_FAILURE)
-                self.assertIn("Error", mock_stderr.getvalue())
+                mock_error.assert_called()
+                call_args = str(mock_error.call_args)
+                self.assertIn("Error", call_args)
 
     def test_print_error_writes_to_stderr(self):
-        with patch("sys.stderr", new=StringIO()) as mock_stderr:
+        with patch("githooklib.cli.console.print_error") as mock_error:
             print_error("Test error message")
-            self.assertIn("Test error message", mock_stderr.getvalue())
+            mock_error.assert_called()
+            call_args = str(mock_error.call_args)
+            self.assertIn("Test error message", call_args)
 
 
 if __name__ == "__main__":

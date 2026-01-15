@@ -1,5 +1,6 @@
 import sys
-from typing import Optional
+from typing import Optional, Callable, Any
+from functools import wraps
 
 from .api import API
 from .constants import EXIT_SUCCESS, EXIT_FAILURE
@@ -32,6 +33,34 @@ console = get_console()
 
 def print_error(message: str) -> None:
     console.print_error(f"{UI_MESSAGE_ERROR_PREFIX}{message}")
+
+
+def require_hook_exists(func: Callable[..., int]) -> Callable[..., int]:
+    """Decorator to validate hook existence before executing hook-related commands.
+    
+    This decorator reduces code duplication by extracting the common pattern of:
+    1. Checking if a hook exists
+    2. Logging and displaying appropriate error messages if not
+    3. Returning EXIT_FAILURE on validation failure
+    
+    The decorated function should have 'hook_name' as its first parameter after 'self'.
+    """
+    @wraps(func)
+    def wrapper(self: "CLI", hook_name: str, *args: Any, **kwargs: Any) -> int:
+        try:
+            if not self._api.check_hook_exists(hook_name):
+                error_msg = self._api.get_hook_not_found_error_message(hook_name)
+                print_error(error_msg)
+                logger.warning("Hook '%s' does not exist", hook_name)
+                logger.debug("Hook '%s' not found, cannot execute %s", hook_name, func.__name__)
+                return EXIT_FAILURE
+            return func(self, hook_name, *args, **kwargs)
+        except Exception as e:
+            logger.error("Error checking hook '%s': %s", hook_name, e)
+            logger.trace("Exception details: %s", e, exc_info=True)
+            print_error(str(e))
+            return EXIT_FAILURE
+    return wrapper
 
 
 class CLI:
@@ -109,6 +138,7 @@ class CLI:
         
         console.print_table(["Hook Name", "Source"], rows)
 
+    @require_hook_exists
     def run(self, hook_name: str) -> int:
         """Run a hook manually for testing purposes.
 
@@ -122,12 +152,6 @@ class CLI:
         """
         logger.debug("Executing run command for hook '%s'", hook_name)
         try:
-            if not self._api.check_hook_exists(hook_name):
-                error_msg = self._api.get_hook_not_found_error_message(hook_name)
-                print_error(error_msg)
-                logger.warning("Hook '%s' does not exist", hook_name)
-                logger.debug("Hook '%s' not found, cannot run", hook_name)
-                return EXIT_FAILURE
             exit_code = self._api.run_hook_by_name(hook_name)
             return exit_code
         except ValueError as e:
@@ -136,6 +160,7 @@ class CLI:
             print_error(str(e))
             return EXIT_FAILURE
 
+    @require_hook_exists
     def install(self, hook_name: str) -> int:
         """Install a hook to .git/hooks/.
 
@@ -149,12 +174,6 @@ class CLI:
         """
         logger.debug("Executing install command for hook '%s'", hook_name)
         try:
-            if not self._api.check_hook_exists(hook_name):
-                error_msg = self._api.get_hook_not_found_error_message(hook_name)
-                print_error(error_msg)
-                logger.warning("Hook '%s' does not exist, cannot install", hook_name)
-                logger.debug("Hook '%s' not found, cannot install", hook_name)
-                return EXIT_FAILURE
             logger.debug("Installing hook '%s'", hook_name)
             success = self._api.install_hook_by_name(hook_name)
             if success:
@@ -170,6 +189,7 @@ class CLI:
             print_error(str(e))
             return EXIT_FAILURE
 
+    @require_hook_exists
     def uninstall(self, hook_name: str) -> int:
         """Uninstall a hook from .git/hooks/.
 
@@ -183,12 +203,6 @@ class CLI:
         """
         logger.debug("Executing uninstall command for hook '%s'", hook_name)
         try:
-            if not self._api.check_hook_exists(hook_name):
-                error_msg = self._api.get_hook_not_found_error_message(hook_name)
-                print_error(error_msg)
-                logger.warning("Hook '%s' does not exist, cannot uninstall", hook_name)
-                logger.debug("Hook '%s' not found, cannot uninstall", hook_name)
-                return EXIT_FAILURE
             logger.debug("Uninstalling hook '%s'", hook_name)
             success = self._api.uninstall_hook_by_name(hook_name)
             if success:

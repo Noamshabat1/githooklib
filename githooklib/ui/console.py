@@ -1,11 +1,21 @@
 from typing import Optional
 import sys
+import platform
 
 from ..logger import get_logger
 
 logger = get_logger()
 
 _global_console: Optional["Console"] = None
+
+# Platform-specific symbols (Windows can't always handle Unicode emojis)
+IS_WINDOWS = platform.system() == "Windows"
+SYMBOLS = {
+    "success": "[OK]" if IS_WINDOWS else "✓",
+    "error": "[X]" if IS_WINDOWS else "✗",
+    "warning": "[!]" if IS_WINDOWS else "⚠",
+    "info": "[i]" if IS_WINDOWS else "ℹ",
+}
 
 
 class Console:
@@ -44,52 +54,56 @@ class Console:
             print(message)
     
     def print_success(self, message: str) -> None:
+        symbol = SYMBOLS["success"]
         if self._rich_console:
-            self._rich_console.print(f"✓ {message}", style="bold green")
+            self._rich_console.print(f"{symbol} {message}", style="bold green")
         elif self.use_colors:
             try:
                 from colorama import Fore, Style
-                print(f"{Fore.GREEN}✓ {message}{Style.RESET_ALL}")
+                print(f"{Fore.GREEN}{symbol} {message}{Style.RESET_ALL}")
             except ImportError:
-                print(f"✓ {message}")
+                print(f"{symbol} {message}")
         else:
-            print(f"✓ {message}")
+            print(f"{symbol} {message}")
     
     def print_error(self, message: str) -> None:
+        symbol = SYMBOLS["error"]
         if self._rich_console:
-            self._rich_console.print(f"✗ {message}", style="bold red")
+            self._rich_console.print(f"{symbol} {message}", style="bold red")
         elif self.use_colors:
             try:
                 from colorama import Fore, Style
-                print(f"{Fore.RED}✗ {message}{Style.RESET_ALL}", file=sys.stderr)
+                print(f"{Fore.RED}{symbol} {message}{Style.RESET_ALL}", file=sys.stderr)
             except ImportError:
-                print(f"✗ {message}", file=sys.stderr)
+                print(f"{symbol} {message}", file=sys.stderr)
         else:
-            print(f"✗ {message}", file=sys.stderr)
+            print(f"{symbol} {message}", file=sys.stderr)
     
     def print_warning(self, message: str) -> None:
+        symbol = SYMBOLS["warning"]
         if self._rich_console:
-            self._rich_console.print(f"⚠ {message}", style="bold yellow")
+            self._rich_console.print(f"{symbol} {message}", style="bold yellow")
         elif self.use_colors:
             try:
                 from colorama import Fore, Style
-                print(f"{Fore.YELLOW}⚠ {message}{Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}{symbol} {message}{Style.RESET_ALL}")
             except ImportError:
-                print(f"⚠ {message}")
+                print(f"{symbol} {message}")
         else:
-            print(f"⚠ {message}")
+            print(f"{symbol} {message}")
     
     def print_info(self, message: str) -> None:
+        symbol = SYMBOLS["info"]
         if self._rich_console:
-            self._rich_console.print(f"ℹ {message}", style="bold blue")
+            self._rich_console.print(f"{symbol} {message}", style="bold blue")
         elif self.use_colors:
             try:
                 from colorama import Fore, Style
-                print(f"{Fore.BLUE}ℹ {message}{Style.RESET_ALL}")
+                print(f"{Fore.BLUE}{symbol} {message}{Style.RESET_ALL}")
             except ImportError:
-                print(f"ℹ {message}")
+                print(f"{symbol} {message}")
         else:
-            print(f"ℹ {message}")
+            print(f"{symbol} {message}")
     
     def print_table(self, headers: list[str], rows: list[list[str]]) -> None:
         if self._rich_console:
